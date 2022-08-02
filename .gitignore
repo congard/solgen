@@ -1,0 +1,18 @@
+# IDEs folders
+.idea
+.cache
+.vscode
+
+# build dirs
+build
+cmake-build-*
+
+# QtCreator files
+CMakeLists.txt.user
+
+# generated test files
+/example/solgen
+
+# clang files
+.clang-format
+.clang-tidy

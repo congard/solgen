@@ -1,0 +1,18 @@
+#ifndef SOL2_GENERATOR_CMDOPTIONS_H
+#define SOL2_GENERATOR_CMDOPTIONS_H
+
+#include <string>
+
+#include "types.h"
+
+namespace solgen {
+// Common options of PTBuilder and SolGen
+struct CmdOptions {
+    bool regenerate {false};
+    bool regenerateDerived {false};
+    bool printPaths {false};
+    File outputDir;
+};
+}
+
+#endif
