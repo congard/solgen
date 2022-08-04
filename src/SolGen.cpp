@@ -347,7 +347,8 @@ FunVariations genFunVariationsSource(Class *cl, Function &fun, long functionsCou
 
     // if there exists custom implementation - use it and
     // skip code generation
-    if (auto impl = fun.options.getImpl(); !impl.empty()) {
+    if (auto it = fun.options.find(GenOptions::Impl); it != fun.options.end()) {
+        for (auto &impl : std::any_cast<const GenOptions::Impl_t&>(it->second))
         funVariations.variations.emplace_front(impl);
         return funVariations;
     }

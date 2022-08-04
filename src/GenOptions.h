@@ -26,7 +26,7 @@ public:
     using Factory_t = std::string;
     using Include_t = std::set<File>;
     using PropName_t = std::string;
-    using Impl_t = std::string;
+    using Impl_t = std::forward_list<std::string>;
     using Dep_t = std::forward_list<std::string>;
 
 public:
@@ -46,7 +46,6 @@ public:
     inline ExplicitCast_t isExplicitCast() const { return get<ExplicitCast_t>(ExplicitCast, false); }
     inline Factory_t getFactory() const { return get<Factory_t>(Factory, ""); }
     inline PropName_t getPropName() const { return get<PropName_t>(PropName, ""); }
-    inline Impl_t getImpl() const { return get<Impl_t>(Impl, ""); }
 
     template<typename T>
     inline T get(const char *key, T &&def) const {
