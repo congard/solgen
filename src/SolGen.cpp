@@ -23,7 +23,7 @@ constexpr auto header = R"(
 #include <sol/sol.hpp>
 
 namespace solgen {
-template<typename T> void registerLuaUsertype(sol::table &table);
+template<typename T> void registerLuaUsertype(sol::table &table, void *userdata = nullptr);
 }
 
 #endif // SOLGEN_SOLGEN_H
@@ -36,13 +36,13 @@ constexpr auto source = R"(// Auto-generated file
 
 $INCLUDES
 namespace $NAMESPACE {
-template<typename T> void registerLuaUsertype(sol::table &table);
+template<typename T> void registerLuaUsertype(sol::table &table, void *userdata);
 $DECLARATIONS
 $IMPL} // $NAMESPACE
 )";
 
 constexpr auto usertype = R"(
-template<> void registerLuaUsertype<$TYPE>(sol::table &table) {
+template<> void registerLuaUsertype<$TYPE>(sol::table &table, void *userdata) {
     if (table["$NAME"].valid())
         return;
 
@@ -56,7 +56,7 @@ template<> void registerLuaUsertype<$TYPE>(sol::table &table) {
 }
 )";
 
-constexpr auto declaration = "template<> void registerLuaUsertype<$TYPE>(sol::table &table);";
+constexpr auto declaration = "template<> void registerLuaUsertype<$TYPE>(sol::table &table, void *userdata);";
 constexpr auto constructors = "sol::constructors<$CTORS>()";
 constexpr auto factories = "sol::factories($FACTORIES)";
 constexpr auto readOnlyField = R"(usertype["$FNAME"] = sol::readonly_property(sol::var($TYPE::$FNAME));)";
@@ -71,7 +71,7 @@ constexpr auto funcCast = "static_cast<$RETTYPE ($TYPE::*)($ARGS)$QUALIFIERS>(&$
 constexpr auto staticFuncCast = "static_cast<$RETTYPE (*)($ARGS)>(&$TYPE::$FNAME)";
 constexpr auto newEnum = R"($TABLE.new_enum("$NAME", $KEYS);)";
 constexpr auto property = R"(usertype["$PNAME"] = sol::property($PROP);)";
-constexpr auto regType = "registerLuaUsertype<$TYPE>($TABLE);";
+constexpr auto regType = "registerLuaUsertype<$TYPE>($TABLE, userdata);";
 
 constexpr auto usertypeTableName = "usertypeTable";
 
