@@ -482,17 +482,14 @@ std::string SolGen::genFunctionsCode(Class *cl) const {
     auto &funs = cl->functions;
 
     auto isOperator = [](const std::string &name) {
-        for (auto op : {"operator=", "operator==", "operator!=",
+        auto operators = {
+            "operator=", "operator==", "operator!=",
                         "operator<", "operator<=", "operator>", "operator>=",
                         "operator+", "operator-", "operator/", "operator*",
-                        "operator[]"})
-        {
-            if (name == op) {
-                return true;
-            }
-        }
+            "operator[]", "operator->", "operator<<", "operator>>"
+        };
 
-        return false;
+        return std::any_of(operators.begin(), operators.end(), [&name](auto el) { return name == el; });
     };
 
     for (auto &funNameData : funs) {
