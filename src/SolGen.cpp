@@ -192,6 +192,8 @@ std::string SolGen::genCtorsCode(Class *cl) const {
                     {"FACTORY", format(factory, {{"TYPE", cl->type.getCanonicalName()}, {"ANAMES", ""}})}
                 });
             }
+        } else { // ctors exist, but non-public or ignored - disable construction
+            return "sol::no_constructor";
         }
     } else {
         ctors.erase(ctors.size() - 2, 2);
