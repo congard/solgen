@@ -484,8 +484,8 @@ std::string SolGen::genFunctionsCode(Class *cl) const {
     auto isOperator = [](const std::string &name) {
         auto operators = {
             "operator=", "operator==", "operator!=",
-                        "operator<", "operator<=", "operator>", "operator>=",
-                        "operator+", "operator-", "operator/", "operator*",
+            "operator<", "operator<=", "operator>", "operator>=",
+            "operator+", "operator-", "operator/", "operator*",
             "operator[]", "operator->", "operator<<", "operator>>"
         };
 
