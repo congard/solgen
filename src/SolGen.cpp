@@ -56,6 +56,15 @@ template<> void registerLuaUsertype<$TYPE>(sol::table &table, void *userdata) {
 }
 )";
 
+constexpr auto enumUsertype = R"(
+template<> void registerLuaUsertype<$TYPE>(sol::table &table, void *userdata) {
+    if (table["$NAME"].valid())
+        return;
+
+    $ENUM
+}
+)";
+
 constexpr auto declaration = "template<> void registerLuaUsertype<$TYPE>(sol::table &table, void *userdata);";
 constexpr auto constructors = "sol::constructors<$CTORS>()";
 constexpr auto factories = "sol::factories($FACTORIES)";
@@ -636,6 +645,26 @@ std::string SolGen::genFunctionsCode(Class *cl) const {
     return functionsCode;
 }
 
+std::string genEnumCode(const Enum &e, const std::string &table) {
+    std::string keys;
+
+    for (auto &key : e.keys) {
+        keys += "\n        " + format(R"("$NAME", $ETYPE::$KEY,)", {
+            {"NAME", key},
+            {"ETYPE", e.type.getCanonicalName()},
+            {"KEY", key}
+        });
+    }
+
+    keys.erase(keys.size() - 1); // erase comma
+
+    return format(newEnum, {
+        {"TABLE",   table},
+        {"NAME",    e.name},
+        {"KEYS",    keys}
+    });
+}
+
 bool matches(const std::regex &filter, const Type &type) {
     std::string typeName = type.getName();
     return std::sregex_iterator(typeName.begin(), typeName.end(), filter) != std::sregex_iterator();
@@ -790,23 +819,7 @@ void SolGen::generate(const PTBuilder &builder) {
         for (auto &e : cl->enums) {
             if (e.options.isIgnore())
                 continue;
-
-            std::string keys;
-            std::string enumType = e.type.getName();
-
-            for (auto &key : e.keys) {
-                keys += "\n        \"" + key + "\", "; // key, type::key
-                keys += enumType + "::";
-                keys += key + ",";
-            }
-
-            keys.erase(keys.size() - 1); // erase comma
-
-            enums += "\n    " + format(newEnum, {
-                {"TABLE",   usertypeTableName},
-                {"NAME",    enumType.substr(enumType.find_last_of(':') + 1)},
-                {"KEYS",    keys}
-            });
+            enums += "\n    " + genEnumCode(e, usertypeTableName);
         }
 
         values["ENUMS"] = enums;
@@ -826,7 +839,32 @@ void SolGen::generate(const PTBuilder &builder) {
         src.source += format(usertype, values);
     }
 
-    // gen header & save
+    // gen code for enums
+    for (auto &p : builder.enums) {
+        const Enum &e = p.second.first;
+        const File &file = p.second.second;
+
+        // filter
+        if (e.options.isIgnore() || !matches(filter, e.type))
+            continue;
+
+        if (!isRegenerate(file, options))
+            continue; // no need to generate code for this enum - its file unchanged
+
+        if (auto it = m_sources.find(file); it == m_sources.end())
+            m_sources[file] = Sources {};
+
+        Sources &src = m_sources[file];
+        src.sourceIncludes.insert(file);
+        src.sourceDecl += "\n" + format(declaration, {{"TYPE", e.type.getCanonicalName()}});
+        src.source += format(enumUsertype, {
+            {"TYPE", e.type.getCanonicalName()},
+            {"NAME", e.name},
+            {"ENUM", genEnumCode(e, "table")}
+        });
+    }
+    
+    // gen & save
     for (auto & [file, src] : m_sources) {
         auto dateStr = []() {
             auto t = std::time(nullptr);

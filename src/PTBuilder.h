@@ -27,6 +27,7 @@ public:
 public:
     std::unordered_map<Type, Class> classes;
     std::unordered_map<Type, Class*> allClasses;
+    std::unordered_map<Type, std::pair<Enum, File>> enums;
     std::vector<std::pair<std::string, std::string>> params;
     std::regex filter;
     const CmdOptions &options;

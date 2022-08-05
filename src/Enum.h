@@ -9,6 +9,7 @@
 
 namespace solgen {
 struct Enum {
+    Name name;
     Type type;
     std::forward_list<Name> keys;
     GenOptions options;

@@ -112,7 +112,26 @@ std::string getFieldSignature(const Field &field, const Class &parent) {
     return field.type.getCanonicalName() + " " + parent.type.getCanonicalName() + "::" + field.name;
 }
 
-CXChildVisitResult visitor(CXCursor c, CXCursor parent, CXClientData clientData);
+Enum buildEnum(CXCursor c, const Conf &conf) {
+    Enum e;
+    e.name = cx2str(clang_getCursorSpelling(c));
+    e.type = clang_getCursorType(c);
+    readOptions(e.options, e.type.getCanonicalName(), conf, c);
+
+    clang_visitChildren(c, [](CXCursor c, CXCursor parent, CXClientData clientData) {
+        if (clang_getCursorKind(c) != CXCursor_EnumConstantDecl)
+            return CXChildVisit_Continue;
+
+        Enum &e = *reinterpret_cast<Enum *>(clientData);
+        e.keys.emplace_front(cx2str(clang_getCursorSpelling(c)));
+
+        return CXChildVisit_Recurse;
+    }, &e);
+
+    return e;
+}
+
+CXChildVisitResult classVisitor(CXCursor c, CXCursor parent, CXClientData clientData);
 
 void visitClass(CXCursor c, PTBuilder *builder) {
     bool hasChildren = false;
@@ -154,10 +173,10 @@ void visitClass(CXCursor c, PTBuilder *builder) {
 
     ClassInfo classInfo {cl_ptr, builder};
 
-    clang_visitChildren(c, visitor, &classInfo);
+    clang_visitChildren(c, classVisitor, &classInfo);
 }
 
-CXChildVisitResult visitor(CXCursor c, CXCursor parent, CXClientData clientData) {
+CXChildVisitResult classVisitor(CXCursor c, CXCursor parent, CXClientData clientData) {
     auto &classInfo = *reinterpret_cast<ClassInfo*>(clientData);
     auto cursorKind = clang_getCursorKind(c);
     auto cursorSpelling = cx2str(clang_getCursorSpelling(c));
@@ -196,23 +215,8 @@ CXChildVisitResult visitor(CXCursor c, CXCursor parent, CXClientData clientData)
             return CXChildVisit_Continue;
         }
         case CXCursor_EnumDecl: {
-            Enum e;
-            e.type = clang_getCursorType(c);
-            readOptions(e.options, e.type.getCanonicalName(), classInfo.builder->conf, c);
-
-            clang_visitChildren(c, [](CXCursor c, CXCursor parent, CXClientData clientData) {
-                if (clang_getCursorKind(c) != CXCursor_EnumConstantDecl)
-                    return CXChildVisit_Recurse;
-
-                Enum &e = *reinterpret_cast<Enum*>(clientData);
-                e.keys.emplace_front(cx2str(clang_getCursorSpelling(c)));
-
-                return CXChildVisit_Recurse;
-            }, &e);
-
             Class *cl = classInfo.cl;
-            cl->enums.emplace_front(e);
-
+            cl->enums.emplace_front(buildEnum(c, classInfo.builder->conf));
             return CXChildVisit_Continue;
         }
         case CXCursor_FieldDecl:
@@ -333,12 +337,30 @@ void PTBuilder::parse(const File &file) {
         if (parent.kind == CXCursor_TranslationUnit && cursorKind != CXCursor_Namespace)
             return CXChildVisit_Continue;
 
-        if (cursorKind == CXCursor_Namespace)
-            return matches(builder->filter, cursorSpelling) ? CXChildVisit_Recurse : CXChildVisit_Continue;
+        switch (cursorKind) {
+            case CXCursor_Namespace:
+                return matches(builder->filter, cursorSpelling) ? CXChildVisit_Recurse : CXChildVisit_Continue;
+            case CXCursor_ClassDecl:
+            case CXCursor_StructDecl:
+                visitClass(c, builder);
+                break;
+            case CXCursor_EnumDecl: {
+                if (builder->enums.find(clang_getCursorType(c)) != builder->enums.end())
+                    break; // enum has been already parsed
 
-        if (cursorKind == CXCursor_ClassDecl || cursorKind == CXCursor_StructDecl)
-            visitClass(c, builder);
+                Enum e = buildEnum(c, builder->conf);
 
+                CXFile file;
+                clang_getExpansionLocation(clang_getCursorLocation(c), &file, nullptr, nullptr, nullptr);
+                auto absFile = cx2str(clang_File_tryGetRealPathName(file));
+                
+                builder->enums[e.type] = {e, absFile};
+                
+                break;
+            }
+            default: break;
+        }
+        
         return CXChildVisit_Continue;
     }, this);
 
