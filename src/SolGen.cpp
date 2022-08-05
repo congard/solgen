@@ -360,7 +360,7 @@ FunVariations genFunVariationsSource(Class *cl, Function &fun, long functionsCou
     // skip code generation
     if (auto it = fun.options.find(GenOptions::Impl); it != fun.options.end()) {
         for (auto &impl : std::any_cast<const GenOptions::Impl_t&>(it->second))
-        funVariations.variations.emplace_front(impl);
+            funVariations.variations.emplace_front(impl);
         return funVariations;
     }
 
