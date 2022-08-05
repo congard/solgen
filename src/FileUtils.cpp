@@ -140,10 +140,18 @@ std::string join(std::string_view p1, std::string_view p2) {
 
 std::string getOutputPath(std::string_view outputDir, std::string_view absPath, std::string_view ext) {
     std::string out = join(outputDir, getRelativePath(absPath));
+    auto dotPos = out.find_last_of('.');
+    auto slashPos = out.find_last_of('/');
+    constexpr auto npos = std::string::npos;
 
-    if (auto pos = out.find('.'); pos != std::string::npos)
-        out.erase(pos);
-    
+    // file.h -> file
+    // file -> file
+    // folder/.hidden/file.h -> folder/file
+    // folder/.hidden/file -> folder/.hidden/file
+
+    if (dotPos != npos && (slashPos == npos || (slashPos != npos && dotPos > slashPos)))
+        out.erase(dotPos); // erase file extension
+
     out += ".solgen.";
     out += ext;
 
