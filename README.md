@@ -44,9 +44,13 @@ Most limitations are coming from the sol2 library itself. For example, you can't
 1. [ ] Add templates support
 2. [ ] Add Windows support
 3. [ ] Add ability to disable properties (flag `--disable-properties` and option `prop_disable`)
-4. [ ] Detect deleted constructors
-5. [ ] Complete TODOs in the project
-6. [ ] Make conf files less type sensitive (?)
+4. [ ] Register types that were used in class (args, fields, return types etc)
+5. [ ] Link getters of type `const std::string&` and setters of type `std::string_view`
+6. [ ] Add multiline support for conf
+7. [x] Generate bindings for enums located in namespaces
+8. [ ] Detect deleted constructors
+9. [ ] Complete TODOs in the project
+10. [ ] Make conf files less type sensitive (?)
 
 I will update this list when I will need more features & functionality for my own projects.
 
