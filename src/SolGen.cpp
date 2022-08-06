@@ -219,26 +219,24 @@ std::string SolGen::genOperatorsCode(Class *cl) const {
     auto typeName = cl->type.getCanonicalName();
 
     auto addOperator = [&](const std::string &code) {
-        if (ops.empty())
-            ops += '\n';
-        ops += "        " + code + ", ";
+        ops += "\n        " + code + ",";
     };
 
     // TODO: check overloads & ignores
 
-    if (auto it = funs.find("operator=="); it != funs.end()) {
+    if (auto it = funs.find("operator=="); it != funs.end())
         addOperator("sol::meta_function::equal_to, &" + typeName + "::operator==");
-    } else if (it = funs.find("operator+"); it != funs.end()) {
+    if (auto it = funs.find("operator+"); it != funs.end())
         addOperator("sol::meta_function::addition, &" + typeName + "::operator+");
-    } else if (it = funs.find("operator-"); it != funs.end()) {
+    if (auto it = funs.find("operator-"); it != funs.end())
         addOperator("sol::meta_function::subtraction, &" + typeName + "::operator-");
-    } else if (it = funs.find("operator*"); it != funs.end()) {
+    if (auto it = funs.find("operator*"); it != funs.end())
         addOperator("sol::meta_function::multiplication, &" + typeName + "::operator*");
-    } else if (it = funs.find("operator/"); it != funs.end()) {
+    if (auto it = funs.find("operator/"); it != funs.end())
         addOperator("sol::meta_function::division, &" + typeName + "::operator/");
-    } else if (it = funs.find("operator<"); it != funs.end()) {
+    if (auto it = funs.find("operator<"); it != funs.end())
         addOperator("sol::meta_function::less_than, &" + typeName + "::operator<");
-    } else if (it = funs.find("operator[]"); it != funs.end()) {
+    if (auto it = funs.find("operator[]"); it != funs.end()) {
         Function *index {nullptr};
         Function *new_index {nullptr};
 
