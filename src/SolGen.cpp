@@ -555,12 +555,12 @@ std::string SolGen::genFunctionsCode(Class *cl) const {
     // properties: phase 1: getters
     for (auto & [name, funOverloadsList] : overloads) {
         if (name.size() > 3 && std::string_view(name.c_str(), 3) == "get") {
-            // now, find non-void function with 0 arguments
+            // now, find non-void non-static function with 0 arguments
             for (FunVariations &funVariations : funOverloadsList) {
                 Function *fun = funVariations.fun;
                 auto retTypeName = fun->type.getResultType().getName();
 
-                if (!fun->options.isIgnore() && len(fun->args) == 0 && retTypeName != "void") {
+                if (!fun->options.isIgnore() && !fun->isStatic && len(fun->args) == 0 && retTypeName != "void") {
                     std::string propName = name.substr(3);
                     propName[0] = std::tolower(propName[0]);
 
@@ -577,12 +577,12 @@ std::string SolGen::genFunctionsCode(Class *cl) const {
     // phase 2: find setters
     for (auto & [name, funOverloadsList] : overloads) {
         if (name.size() > 3 && std::string_view(name.c_str(), 3) == "set") {
-            // now, find void function with 1 argument of type properties[name].type
+            // now, find non-static void function with 1 argument of type properties[name].type
             for (FunVariations &funVariations : funOverloadsList) {
                 Function *fun = funVariations.fun;
                 auto retTypeName = fun->type.getResultType().getName();
 
-                if (!fun->options.isIgnore() && len(fun->args) == 1 && retTypeName == "void" &&
+                if (!fun->options.isIgnore() && !fun->isStatic && len(fun->args) == 1 && retTypeName == "void" &&
                     len(funVariations.variations) == 1)
                 {
                     std::string propName = name.substr(3);
