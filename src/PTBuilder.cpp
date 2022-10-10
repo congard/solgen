@@ -197,11 +197,17 @@ CXChildVisitResult classVisitor(CXCursor c, CXCursor parent, CXClientData client
         }
         case CXCursor_CXXBaseSpecifier: {
             Type cursorType = clang_getCursorType(c);
-            auto base = classInfo.builder->allClasses.at(cursorType);
-            classInfo.cl->bases.emplace_front(Class::Base {base, static_cast<Access>(access)});
+            auto baseIt = classInfo.builder->allClasses.find(cursorType);
+
+            if (baseIt != classInfo.builder->allClasses.end()) {
+                classInfo.cl->bases.emplace_front(Class::Base{baseIt->second, static_cast<Access>(access)});
+            } else {
+                // TODO: template classes
+            }
+
             break;
         }
-        case CXCursor_Constructor: {// TODO: detect deleted
+        case CXCursor_Constructor: { // TODO: detect deleted
             if (clang_CXXConstructor_isMoveConstructor(c))
                 return CXChildVisit_Continue;
             
