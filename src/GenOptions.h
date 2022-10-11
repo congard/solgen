@@ -6,6 +6,7 @@
 #include <string>
 #include <map>
 #include <any>
+#include <regex>
 
 #include "types.h"
 
@@ -13,6 +14,7 @@ namespace solgen {
 class GenOptions {
 public:
     static constexpr auto Ignore = "ignore";
+    static constexpr auto IgnoreName = "ignoreName";
     static constexpr auto ExplicitCast = "explicit_cast";
     static constexpr auto Factory = "factory";
     static constexpr auto Include = "include";
@@ -22,6 +24,7 @@ public:
     static constexpr auto End = "end";
 
     using Ignore_t = bool;
+    using IgnoreName_t = std::forward_list<std::regex>;
     using ExplicitCast_t = bool;
     using Factory_t = std::string;
     using Include_t = std::set<File>;

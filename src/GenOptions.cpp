@@ -18,6 +18,12 @@ void GenOptions::setVal(const std::string &key, const std::string &value) {
         } else {
             std::any_cast<T&>(options[key]).emplace_front(value);
         }
+    } else if (key == GenOptions::IgnoreName) {
+        if (auto it = options.find(key); it == options.end()) {
+            options[key] = std::any(IgnoreName_t {std::regex(value)});
+        } else {
+            std::any_cast<IgnoreName_t&>(options[key]).emplace_front(value);
+        }
     } else {
         options[key] = std::any(value);
     }

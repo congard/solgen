@@ -14,7 +14,8 @@
 #include "types.h"
 
 namespace solgen {
-struct Class {
+class Class {
+public:
     struct Constructor {
         Args args; // NOTE: reversed
         GenOptions options;
@@ -38,6 +39,29 @@ struct Class {
     std::forward_list<Class> classes;
     std::unordered_map<std::string, std::forward_list<Function>> functions;
     bool isAbstract;
+
+public:
+    template<typename T>
+    bool isIgnore(T &obj) {
+        if (obj.options.isIgnore())
+            return true;
+
+        // check if object is ignored by name at class level
+        // only applicable for fields and functions
+        if constexpr (std::is_same_v<T, Field> || std::is_same_v<T, Function>) {
+            if (auto it = options.find(GenOptions::IgnoreName); it != options.end()) {
+                auto &regexes = std::any_cast<GenOptions::IgnoreName_t&>(it->second);
+
+                for (std::regex &regex : regexes) {
+                    if (std::sregex_iterator(obj.name.begin(), obj.name.end(), regex) != std::sregex_iterator()) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
 };
 }
 

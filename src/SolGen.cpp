@@ -294,7 +294,7 @@ std::string SolGen::genFieldsCode(Class *cl) const {
     std::string fields;
 
     for (Field &fld : cl->fields) {
-        if (fld.options.isIgnore())
+        if (cl->isIgnore(fld))
             continue;
 
         std::unordered_map<std::string_view, std::string> values = {
@@ -514,7 +514,7 @@ std::string SolGen::genFunctionsCode(Class *cl) const {
             // Note: if the Function has override attrib, we can skip code generation for
             // this function, in case if overriden function in base class is public too;
             // in theory it can reduce lua usertype table size
-            if (!fun.options.isIgnore()) {
+            if (!cl->isIgnore(fun)) {
                 overloads[name].emplace_front(genFunVariationsSource(cl, fun, functionsCount));
             }
         }
@@ -560,7 +560,7 @@ std::string SolGen::genFunctionsCode(Class *cl) const {
                 Function *fun = funVariations.fun;
                 auto retTypeName = fun->type.getResultType().getName();
 
-                if (!fun->options.isIgnore() && !fun->isStatic && len(fun->args) == 0 && retTypeName != "void") {
+                if (!cl->isIgnore(*fun) && !fun->isStatic && len(fun->args) == 0 && retTypeName != "void") {
                     std::string propName = name.substr(3);
                     propName[0] = std::tolower(propName[0]);
 
@@ -582,7 +582,7 @@ std::string SolGen::genFunctionsCode(Class *cl) const {
                 Function *fun = funVariations.fun;
                 auto retTypeName = fun->type.getResultType().getName();
 
-                if (!fun->options.isIgnore() && !fun->isStatic && len(fun->args) == 1 && retTypeName == "void" &&
+                if (!cl->isIgnore(*fun) && !fun->isStatic && len(fun->args) == 1 && retTypeName == "void" &&
                     len(funVariations.variations) == 1)
                 {
                     std::string propName = name.substr(3);

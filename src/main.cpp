@@ -55,6 +55,9 @@ Available options:
 
     ignore
         ignore symbol (all)
+
+    ignoreName
+        ignore function/field by name with provided regex (class)
     
     explicit_cast
         use static_cast instead of just taking address of function (class, function)
