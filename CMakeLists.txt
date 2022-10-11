@@ -19,6 +19,8 @@ add_executable(solgen
     src/StringUtils.h
     src/Type.h src/Type.cpp
     src/CmdOptions.h
-    src/Conf.cpp src/Conf.h)
+    src/Conf.cpp src/Conf.h
+    src/ArgHandler/ArgHandler.cpp src/ArgHandler/ArgHandler.h
+    src/ArgHandler/std_containers.hpp)
 
 target_link_libraries(solgen clang)

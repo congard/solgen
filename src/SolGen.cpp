@@ -1,6 +1,7 @@
 #include "SolGen.h"
 #include "FileUtils.h"
 #include "version.h"
+#include "ArgHandler/ArgHandler.h"
 
 #include <algorithm>
 #include <cstring>
@@ -362,45 +363,33 @@ FunVariations genFunVariationsSource(Class *cl, Function &fun, long functionsCou
         return funVariations;
     }
 
-    // returns empty string if good, otherwise returns good type
-    auto isBad = [](const std::string &name) -> std::string { // TODO: maybe somehow remove reference using libclang?
-        for (std::string type : {"vector", "map", "unordered_map"}) {
-            // (?:const)? *(?:std::)?vector<(.+)> *&
-            std::regex rx("(?:const)? *(?:std::)?" + type + "<(.+)> *&");
-
-            for (auto it = std::sregex_iterator(name.begin(), name.end(), rx); it != std::sregex_iterator(); ++it) {
-                return "std::" + type + '<' + (*it)[1].str() + '>';
-            }
-        }
-
-        return {};
-    }; // isBad
-
-    struct GoodArg {
+    struct ProcessedArg {
         Name name;
         std::string type;
+        std::string handler;
         bool hasDefault;
     };
 
-    std::list<GoodArg> newArgs;
+    std::list<ProcessedArg> newArgs;
     std::string argsStr;
     std::string argsNames;
-    bool badArgs = false;
+    bool matchedArgs = false;
 
     for (Arg &arg : fun.args) { // backwards
-        if (std::string good = isBad(arg.type.getCanonicalName()); good.empty()) {
-            GoodArg argGood;
+        if (auto match = ArgHandler::handle(arg.type.getCanonicalName()); match.isValid()) {
+            ProcessedArg argGood;
+            argGood.name = arg.name;
+            argGood.type = match.type;
+            argGood.handler = match.handler;
+            argGood.hasDefault = arg.hasDefault;
+            newArgs.insert(newArgs.begin(), argGood);
+            matchedArgs = true;
+        } else {
+            ProcessedArg argGood;
             argGood.name = arg.name;
             argGood.type = arg.type.getCanonicalName();
             argGood.hasDefault = arg.hasDefault;
             newArgs.insert(newArgs.begin(), argGood);
-        } else {
-            GoodArg argGood;
-            argGood.name = arg.name;
-            argGood.type = good;
-            argGood.hasDefault = arg.hasDefault;
-            newArgs.insert(newArgs.begin(), argGood);
-            badArgs = true;
         }
     }
 
@@ -430,7 +419,7 @@ FunVariations genFunVariationsSource(Class *cl, Function &fun, long functionsCou
     };
 
     // add overloading if function has default arguments
-    for (GoodArg &arg : newArgs) {
+    for (ProcessedArg &arg : newArgs) {
         if (arg.hasDefault) {
             if (!fun.isStatic) {
                 addLambdaOverload();
@@ -440,17 +429,17 @@ FunVariations genFunVariationsSource(Class *cl, Function &fun, long functionsCou
         }
 
         argsStr += (argsStr.empty() ? "" : ", ") + arg.type + ' ' + arg.name;
-        argsNames += arg.name + ", ";
+        argsNames += (arg.handler.empty() ? arg.name : format(arg.handler, {{"arg", arg.name}})) + ", ";
     }
 
     if (functionsCount == 1 && !cl->options.isExplicitCast() && !fun.options.isExplicitCast()) {
-        if (!badArgs) { // pointer to function without casting
+        if (!matchedArgs) { // pointer to function without casting
             addOverload(format(functionPtr, {{"TYPE", cl->type.getCanonicalName()}, {"FNAME", fun.name}}));
         } else { // lambda
             addLambdaOverload();
         }
     } else {
-        if (!badArgs) { // pointer to function with casting
+        if (!matchedArgs) { // pointer to function with casting
             std::string qualifiers;
 
             if (fun.isConst) qualifiers += " const";
