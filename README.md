@@ -41,16 +41,18 @@ Most limitations are coming from the sol2 library itself. For example, you can't
 
 ## Roadmap
 
-1. [ ] Add templates support
-2. [ ] Add Windows support
-3. [ ] Add ability to disable properties (flag `--disable-properties` and option `prop_disable`)
-4. [ ] Register types that were used in class (args, fields, return types etc)
-5. [ ] Link getters of type `const std::string&` and setters of type `std::string_view`
-6. [ ] Add multiline support for conf
-7. [x] Generate bindings for enums located in namespaces
-8. [ ] Detect deleted constructors
-9. [ ] Complete TODOs in the project
-10. [ ] Make conf files less type sensitive (?)
+1. [ ] **High Priority**: refactor: move functionality from `SolGen.cpp` to the corresponding 
+       classes (`Class`, `Enum` etc)
+2. [ ] Add templates support
+3. [ ] Add Windows support
+4. [ ] Add ability to disable properties (flag `--disable-properties` and option `prop_disable`)
+5. [ ] Register types that were used in class (args, fields, return types etc)
+6. [ ] Link getters of type `const std::string&` and setters of type `std::string_view`
+7. [ ] Add multiline support for conf
+8. [x] Generate bindings for enums located in namespaces
+9. [ ] Detect deleted constructors
+10. [ ] Complete TODOs in the project
+11. [ ] Make conf files less type sensitive (?)
 
 I will update this list when I will need more features & functionality for my own projects.
 
