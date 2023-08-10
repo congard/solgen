@@ -4,9 +4,7 @@
 #include "ArgHandler/ArgHandler.h"
 
 #include <algorithm>
-#include <cstring>
 #include <list>
-#include <map>
 #include <regex>
 #include <string>
 #include <string_view>
@@ -15,6 +13,7 @@
 #include <iomanip>
 #include <ctime>
 #include <sstream>
+#include <iostream>
 
 namespace solgen {
 constexpr auto header = R"(
@@ -85,7 +84,7 @@ constexpr auto regType = "registerLuaUsertype<$TYPE>($TABLE, userdata);";
 
 constexpr auto usertypeTableName = "usertypeTable";
 
-std::string format(std::string_view str, const std::unordered_map<std::string_view, std::string> &values) {
+static std::string format(std::string_view str, const std::unordered_map<std::string_view, std::string> &values) {
     std::string result;
     size_t pos = 0;
     size_t startPos = 0;
@@ -123,7 +122,7 @@ enum class ArgIgnore {
 };
 
 template<typename T = Args>
-std::string argsToString(const T &args, ArgIgnore ignore = ArgIgnore::Name) {
+static std::string argsToString(const T &args, ArgIgnore ignore = ArgIgnore::Name) {
     if (args.empty())
         return {};
 
@@ -157,11 +156,11 @@ std::string argsToString(const T &args, ArgIgnore ignore = ArgIgnore::Name) {
 }
 
 template<typename T>
-inline auto len(const std::forward_list<T> &forwardList) {
+inline static auto len(const std::forward_list<T> &forwardList) {
     return std::distance(forwardList.begin(), forwardList.end());
 }
 
-void readIncludes(const GenOptions &options, std::set<File> &out) {
+static void readIncludes(const GenOptions &options, std::set<File> &out) {
     if (auto it = options.find(GenOptions::Include); it != options.end()) {
         const auto &includes = std::any_cast<const GenOptions::Include_t&>(it->second);
         out.insert(includes.begin(), includes.end());
@@ -329,7 +328,7 @@ struct Property {
 
 using Overloads = std::forward_list<FunVariations>;
 
-FunVariations genFunVariationsSource(Class *cl, Function &fun, long functionsCount) {
+static FunVariations genFunVariationsSource(Class *cl, Function &fun, long functionsCount) {
     // if function has default arguments, we should create bindings
     // for each variation, e.g:
     //  void foo(int a = 0, float b = 1, double c = 2)
@@ -632,7 +631,7 @@ std::string SolGen::genFunctionsCode(Class *cl) const {
     return functionsCode;
 }
 
-std::string genEnumCode(const Enum &e, const std::string &table) {
+static std::string genEnumCode(const Enum &e, const std::string &table) {
     std::string keys;
 
     for (auto &key : e.keys) {
@@ -652,7 +651,7 @@ std::string genEnumCode(const Enum &e, const std::string &table) {
     });
 }
 
-bool matches(const std::regex &filter, const Type &type) {
+static bool matches(const std::regex &filter, const Type &type) {
     std::string typeName = type.getName();
     return std::sregex_iterator(typeName.begin(), typeName.end(), filter) != std::sregex_iterator();
 }
@@ -691,7 +690,7 @@ std::string SolGen::genDependenciesReg(Class *cl) const {
     return dependencies.empty() ? "" : '\n' + dependencies;
 }
 
-void collectPublicBases(const Type &type, const std::unordered_map<Type, Class*> &classes,
+static void collectPublicBases(const Type &type, const std::unordered_map<Type, Class*> &classes,
                   std::unordered_map<Type, std::set<Type>> &bases)
 {
     if (bases.find(type) != bases.end())
@@ -709,7 +708,7 @@ void collectPublicBases(const Type &type, const std::unordered_map<Type, Class*>
     }
 }
 
-void buildRegenerationMap(const Class &cl, std::unordered_map<File, bool> &regenerationMap, const CmdOptions &options) {
+static void buildRegenerationMap(const Class &cl, std::unordered_map<File, bool> &regenerationMap, const CmdOptions &options) {
     // one file can contain several classes, so we can return only in case
     // if the file already needs to be regenerated
     if (auto it = regenerationMap.find(cl.absFile); it != regenerationMap.end() && it->second)
@@ -751,6 +750,13 @@ void SolGen::generate(const PTBuilder &builder) {
         }
     }
 
+    auto printOutputFile = [this](const File &file) {
+        if (options.printPaths) {
+            std::string sourceFile = getOutputPath(options.outputDir, file, "cpp");
+            std::cout << sourceFile << "\n";
+        }
+    };
+
     // iterate over all classes
     for (auto &p : builder.allClasses) {
         const Type &type = p.first;
@@ -760,17 +766,21 @@ void SolGen::generate(const PTBuilder &builder) {
         if (cl->options.isIgnore() || !matches(filter, type))
             continue;
 
-        if (!isRegenerate(cl->absFile, options))
+        auto &classAbsPath = cl->absFile;
+
+        printOutputFile(classAbsPath);
+
+        if (!isRegenerate(classAbsPath, options))
             continue; // no need to generate code for this class - its file unchanged
 
-        if (auto it = m_sources.find(cl->absFile); it == m_sources.end())
-            m_sources[cl->absFile] = Sources {};
+        if (auto it = m_sources.find(classAbsPath); it == m_sources.end())
+            m_sources[classAbsPath] = Sources {};
 
-        Sources &src = m_sources[cl->absFile];
+        Sources &src = m_sources[classAbsPath];
 
         readIncludes(cl->options, src.sourceIncludes);
 
-        src.sourceIncludes.insert(cl->absFile);
+        src.sourceIncludes.insert(classAbsPath);
 
         std::unordered_map<std::string_view, std::string> values;
         values["NAME"] = cl->name;
@@ -834,6 +844,8 @@ void SolGen::generate(const PTBuilder &builder) {
         // filter
         if (e.options.isIgnore() || !matches(filter, e.type))
             continue;
+
+        printOutputFile(file);
 
         if (!isRegenerate(file, options))
             continue; // no need to generate code for this enum - its file unchanged

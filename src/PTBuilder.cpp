@@ -4,8 +4,6 @@
 
 #include <iostream>
 
-using namespace std;
-
 namespace solgen {
 PTBuilder::PTBuilder(const CmdOptions &options, const Conf &conf)
     : options(options), conf(conf), m_index(clang_createIndex(1, 1)) {}
@@ -315,13 +313,16 @@ void PTBuilder::init() {
 }
 
 void PTBuilder::parse(const File &file) {
-    if (options.printPaths) {
-        std::string sourceFile = getOutputPath(options.outputDir, file, "cpp");
-        cout << sourceFile << "\n";
-    }
+    if (!shouldBeRegenerated(file, options) && !options.regenerateDerived) {
+        // print it anyway, since an external tool like
+        // CMake most likely needs all of them
+        if (options.printPaths) {
+            std::string sourceFile = getOutputPath(options.outputDir, file, "cpp");
+            std::cout << sourceFile << "\n";
+        }
 
-    if (!shouldBeRegenerated(file, options) && !options.regenerateDerived)
         return;
+    }
 
     CXTranslationUnit unit = clang_parseTranslationUnit(
             m_index,
@@ -330,7 +331,7 @@ void PTBuilder::parse(const File &file) {
             CXTranslationUnit_SkipFunctionBodies);
 
     if (unit == nullptr) {
-        cerr << "Unable to parse translation unit. Quitting." << endl;
+        std::cerr << "Unable to parse translation unit. Quitting." << std::endl;
         exit(-1);
     }
 
