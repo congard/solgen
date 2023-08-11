@@ -58,17 +58,17 @@ void Conf::load(const File &filePath) {
 
             type.erase(type.size() - 1);
 
-            GenOptions options;
+            Options options;
 
             // read keys & values
             while (true) {
                 skipSpaces();
                 auto key = readWord();
 
-                if (key.empty() || key == GenOptions::End)
+                if (key.empty() || key == Options::End)
                     break;
 
-                if (GenOptions::isSwitcher(key)) {
+                if (Options::isSwitcher(key)) {
                     options[key] = true;
                 } else {
                     skipSpaces();
@@ -84,7 +84,7 @@ void Conf::load(const File &filePath) {
     fclose(file);
 }
 
-const GenOptions* Conf::getOptions(const std::string &canonicalName) const {
+const Options* Conf::getOptions(const std::string &canonicalName) const {
     if (auto it = m_options.find(canonicalName); it != m_options.end())
         return &it->second;
     return nullptr;

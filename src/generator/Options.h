@@ -1,5 +1,5 @@
-#ifndef SOL2_GENERATOR_GENOPTIONS_H
-#define SOL2_GENERATOR_GENOPTIONS_H
+#ifndef SOL2_GENERATOR_OPTIONS_H
+#define SOL2_GENERATOR_OPTIONS_H
 
 #include <forward_list>
 #include <set>
@@ -8,10 +8,10 @@
 #include <any>
 #include <regex>
 
-#include "types.h"
+#include "../types.h"
 
 namespace solgen {
-class GenOptions {
+class Options {
 public:
     static constexpr auto Ignore = "ignore";
     static constexpr auto IgnoreName = "ignoreName";
@@ -65,4 +65,4 @@ public:
 };
 }
 
-#endif //SOL2_GENERATOR_GENOPTIONS_H
+#endif //SOL2_GENERATOR_OPTIONS_H

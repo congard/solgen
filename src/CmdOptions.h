@@ -6,7 +6,7 @@
 #include "types.h"
 
 namespace solgen {
-// Common options of PTBuilder and SolGen
+// Common options of PTBuilder and Generator
 struct CmdOptions {
     bool regenerate {false};
     bool regenerateDerived {false};

@@ -1,5 +1,5 @@
 #include "Type.h"
-#include "StringUtils.h"
+#include "utils/StringUtils.h"
 
 namespace solgen {
 Type::Type(CXType cxType): cxType(cxType) {}

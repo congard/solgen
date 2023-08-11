@@ -5,8 +5,8 @@
 #include <string_view>
 #include <bits/types/time_t.h>
 
-#include "CmdOptions.h"
-#include "types.h"
+#include "../CmdOptions.h"
+#include "../types.h"
 
 namespace solgen {
 bool exists(std::string_view path);

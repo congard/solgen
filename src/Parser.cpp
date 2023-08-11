@@ -1,20 +1,21 @@
-#include "PTBuilder.h"
-#include "StringUtils.h"
-#include "FileUtils.h"
+#include "Parser.h"
+#include "utils/StringUtils.h"
+#include "utils/FileUtils.h"
+#include "utils/matches.h"
 
 #include <iostream>
 
 namespace solgen {
-PTBuilder::PTBuilder(const CmdOptions &options, const Conf &conf)
-    : options(options), conf(conf), m_index(clang_createIndex(1, 1)) {}
+Parser::Parser(const CmdOptions &options, const Conf &conf)
+    : m_options(options), m_conf(conf), m_index(clang_createIndex(1, 1)) {}
 
-PTBuilder::~PTBuilder() {
+Parser::~Parser() {
     for (auto unit : m_units)
         clang_disposeTranslationUnit(unit);
     clang_disposeIndex(m_index);
 }
 
-void parseUsrString(const std::string &usrString, bool* isVolatile, bool* isConst, bool *isRestrict) {
+static void parseUsrString(const std::string &usrString, bool* isVolatile, bool* isConst, bool *isRestrict) {
     size_t bangLocation = usrString.find_last_of('#');
 
     if (bangLocation == std::string::npos || bangLocation == usrString.length() - 1) {
@@ -30,29 +31,27 @@ void parseUsrString(const std::string &usrString, bool* isVolatile, bool* isCons
     *isRestrict = x & 0x2;
 }
 
-bool matches(const std::regex &filter, const std::string &name) {
-    return std::sregex_iterator(name.begin(), name.end(), filter) != std::sregex_iterator();
-}
-
 struct ClassInfo {
-    Class *cl;
-    PTBuilder *builder;
+    Class *clazz;
+    Parser *builder;
 };
 
-void readArgs(Args &args, CXCursor c) {
+static void readArgs(Args &args, CXCursor c) {
     int argsNum = clang_Cursor_getNumArguments(c);
 
     for (int i = 0; i < argsNum; ++i) {
         CXCursor arg = clang_Cursor_getArgument(c, i);
-        args.emplace_front(Arg {
-            cx2str(clang_getCursorSpelling(arg)), // name
-            clang_getCursorType(arg), // type
-            !clang_Cursor_isNull(clang_Cursor_getVarDeclInitializer(arg)) // hasDefault
+        args.emplace_back(Arg {
+            .name = cx2str(clang_getCursorSpelling(arg)),
+            .type = clang_getCursorType(arg),
+            .hasDefault = !clang_Cursor_isNull(clang_Cursor_getVarDeclInitializer(arg))
         });
     }
 }
 
-void readOptions(GenOptions &result, const std::string &sig, const Conf &conf, CXCursor cursor) {
+static Options readOptions(const std::string &sig, const Conf &conf, CXCursor cursor) {
+    Options result;
+
     // merge values from config if exists
     if (auto options = conf.getOptions(sig); options)
         result.options.insert(options->options.begin(), options->options.end());
@@ -61,7 +60,7 @@ void readOptions(GenOptions &result, const std::string &sig, const Conf &conf, C
     auto pos = data.find("#solgen");
 
     if (pos == std::string::npos)
-        return;
+        return result;
 
     pos += 6; // strlen("solgen")
 
@@ -81,47 +80,49 @@ void readOptions(GenOptions &result, const std::string &sig, const Conf &conf, C
             ++pos;
         }
 
-        if (GenOptions::isSwitcher(key)) {
+        if (Options::isSwitcher(key)) {
             result[key] = true;
-        } else if (key == GenOptions::End) {
+        } else if (key == Options::End) {
             break;
         } else { // read value
             std::string value = data.substr(pos + 1, data.find('#', pos) - 1 - pos - 1);
             result.setVal(key, value);
         }
     }
+
+    return result;
 }
 
-std::string getCtorSignature(const Type &type, const Class &parent) {
+static std::string getCtorSignature(const Type &type, const Class &parent) {
     std::string sig = type.getCanonicalName();
     sig.erase(0, 5); // 'void '
-    sig.insert(0, parent.type.getCanonicalName() + "::" + parent.name);
+    sig.insert(0, parent.getType().getCanonicalName() + "::" + parent.getName());
     return sig;
 }
 
-std::string getFunctionSignature(const Function &fun, const Class &parent) {
-    std::string sig = fun.type.getCanonicalName();
+static std::string getFunctionSignature(const Function &fun, const Class &parent) {
+    std::string sig = fun.getType().getCanonicalName();
     auto pos = sig.find('(');
-    sig.insert(pos, parent.type.getCanonicalName() + "::" + fun.name);
+    sig.insert(pos, parent.getType().getCanonicalName() + "::" + fun.getName());
     return sig;
 }
 
-std::string getFieldSignature(const Field &field, const Class &parent) {
-    return field.type.getCanonicalName() + " " + parent.type.getCanonicalName() + "::" + field.name;
+static std::string getFieldSignature(const Field &field, const Class &parent) {
+    return field.getType().getCanonicalName() + " " + parent.getType().getCanonicalName() + "::" + field.getName();
 }
 
-Enum buildEnum(CXCursor c, const Conf &conf) {
+static Enum buildEnum(CXCursor c, const Conf &conf) {
     Enum e;
-    e.name = cx2str(clang_getCursorSpelling(c));
-    e.type = clang_getCursorType(c);
-    readOptions(e.options, e.type.getCanonicalName(), conf, c);
+    e.setName(cx2str(clang_getCursorSpelling(c)));
+    e.setType(clang_getCursorType(c));
+    e.setOptions(readOptions(e.getType().getCanonicalName(), conf, c));
 
     clang_visitChildren(c, [](CXCursor c, CXCursor parent, CXClientData clientData) {
         if (clang_getCursorKind(c) != CXCursor_EnumConstantDecl)
             return CXChildVisit_Continue;
 
         Enum &e = *reinterpret_cast<Enum *>(clientData);
-        e.keys.emplace_front(cx2str(clang_getCursorSpelling(c)));
+        e.addKey(cx2str(clang_getCursorSpelling(c)));
 
         return CXChildVisit_Recurse;
     }, &e);
@@ -129,9 +130,7 @@ Enum buildEnum(CXCursor c, const Conf &conf) {
     return e;
 }
 
-CXChildVisitResult classVisitor(CXCursor c, CXCursor parent, CXClientData clientData);
-
-void visitClass(CXCursor c, PTBuilder *builder) {
+void Parser::visitClass(CXCursor c) {
     bool hasChildren = false;
 
     clang_visitChildren(c, [](CXCursor c, CXCursor parent, CXClientData clientData) {
@@ -142,39 +141,38 @@ void visitClass(CXCursor c, PTBuilder *builder) {
     if (!hasChildren)
         return; // incomplete type
 
-    Class cl;
-    cl.type = clang_getCursorType(c);
+    Class clazz;
+    clazz.setType(clang_getCursorType(c));
 
-    if (builder->allClasses.find(cl.type) != builder->allClasses.end())
+    if (m_allClasses.find(clazz.getType()) != m_allClasses.end())
         return; // class has been already parsed
     
-    cl.name = cx2str(clang_getCursorSpelling(c));
-    cl.isAbstract = clang_CXXRecord_isAbstract(c);
-
-    readOptions(cl.options, cl.type.getCanonicalName(), builder->conf, c);
+    clazz.setName(cx2str(clang_getCursorSpelling(c)));
+    clazz.setAbstract(clang_CXXRecord_isAbstract(c));
+    clazz.setOptions(readOptions(clazz.getType().getCanonicalName(), m_conf, c));
     
     CXFile file;
     clang_getExpansionLocation(clang_getCursorLocation(c), &file, nullptr, nullptr, nullptr);
-    cl.file = cx2str(clang_getFileName(file));
-    cl.absFile = cx2str(clang_File_tryGetRealPathName(file));
+    clazz.setFile(cx2str(clang_getFileName(file)));
+    clazz.setAbsFile(cx2str(clang_File_tryGetRealPathName(file)));
 
-    Class *cl_ptr {nullptr};
+    Class *clazz_ptr {nullptr};
     Type parentType = clang_getCursorType(clang_getCursorSemanticParent(c));
 
     if (!parentType.getName().empty()) {
-        cl_ptr = &builder->allClasses[parentType]->classes.emplace_front(cl);
+        clazz_ptr = &m_allClasses[parentType]->addClass(clazz);
     } else {
-        cl_ptr = &(builder->classes[cl.type] = cl);
+        clazz_ptr = &(m_classes[clazz.getType()] = clazz);
     }
 
-    builder->allClasses[cl.type] = cl_ptr;
+    m_allClasses[clazz.getType()] = clazz_ptr;
 
-    ClassInfo classInfo {cl_ptr, builder};
+    ClassInfo classInfo {clazz_ptr, this};
 
     clang_visitChildren(c, classVisitor, &classInfo);
 }
 
-CXChildVisitResult classVisitor(CXCursor c, CXCursor parent, CXClientData clientData) {
+CXChildVisitResult Parser::classVisitor(CXCursor c, CXCursor parent, CXClientData clientData) {
     auto &classInfo = *reinterpret_cast<ClassInfo*>(clientData);
     auto cursorKind = clang_getCursorKind(c);
     auto cursorSpelling = cx2str(clang_getCursorSpelling(c));
@@ -190,15 +188,15 @@ CXChildVisitResult classVisitor(CXCursor c, CXCursor parent, CXClientData client
     switch (cursorKind) {
         case CXCursor_ClassDecl:
         case CXCursor_StructDecl: {
-            visitClass(c, classInfo.builder);
+            classInfo.builder->visitClass(c);
             return CXChildVisit_Continue;
         }
         case CXCursor_CXXBaseSpecifier: {
             Type cursorType = clang_getCursorType(c);
-            auto baseIt = classInfo.builder->allClasses.find(cursorType);
+            auto baseIt = classInfo.builder->m_allClasses.find(cursorType);
 
-            if (baseIt != classInfo.builder->allClasses.end()) {
-                classInfo.cl->bases.emplace_front(Class::Base{baseIt->second, static_cast<Access>(access)});
+            if (baseIt != classInfo.builder->m_allClasses.end()) {
+                classInfo.clazz->addBase(Class::Base{baseIt->second, static_cast<Access>(access)});
             } else {
                 // TODO: template classes
             }
@@ -209,48 +207,49 @@ CXChildVisitResult classVisitor(CXCursor c, CXCursor parent, CXClientData client
             if (clang_CXXConstructor_isMoveConstructor(c))
                 return CXChildVisit_Continue;
             
-            Class *cl = classInfo.cl;
+            Class *clazz = classInfo.clazz;
             Class::Constructor ctor;
             ctor.access = static_cast<Access>(access);
-            readOptions(ctor.options, getCtorSignature(clang_getCursorType(c), *cl), classInfo.builder->conf, c);
+            ctor.options = readOptions(getCtorSignature(clang_getCursorType(c), *clazz), classInfo.builder->m_conf, c);
             readArgs(ctor.args, c);
-            cl->ctors.emplace_front(ctor);
+            clazz->addConstructor(ctor);
 
             return CXChildVisit_Continue;
         }
         case CXCursor_EnumDecl: {
-            Class *cl = classInfo.cl;
-            cl->enums.emplace_front(buildEnum(c, classInfo.builder->conf));
+            Class *clazz = classInfo.clazz;
+            clazz->addEnum(buildEnum(c, classInfo.builder->m_conf));
             return CXChildVisit_Continue;
         }
         case CXCursor_FieldDecl:
         case CXCursor_VarDecl: {
-            Class *cl = classInfo.cl;
+            Class *clazz = classInfo.clazz;
             auto ctype = clang_getCursorType(c);
-            auto &field = cl->fields.emplace_front(Field {
-                cursorSpelling, // name
-                ctype // type
-            });
-            field.isConst = clang_isConstQualifiedType(ctype);
-            readOptions(field.options, getFieldSignature(field, *cl), classInfo.builder->conf, c);
+            auto &field = clazz->addField({ctype, cursorSpelling});
+            field.setConst(clang_isConstQualifiedType(ctype));
+            field.setOptions(readOptions(getFieldSignature(field, *clazz), classInfo.builder->m_conf, c));
             break;
         }
         case CXCursor_CXXMethod: {
-            Class *cl = classInfo.cl;
+            Class *clazz = classInfo.clazz;
 
             Function fun;
-            fun.type = clang_getCursorType(c);
-            fun.name = cursorSpelling;
+            fun.setType(clang_getCursorType(c));
+            fun.setName(cursorSpelling);
+            fun.setOptions(readOptions(getFunctionSignature(fun, *clazz), classInfo.builder->m_conf, c));
 
-            readOptions(fun.options, getFunctionSignature(fun, *cl), classInfo.builder->conf, c);
-            readArgs(fun.args, c);
+            readArgs(fun.args(), c);
 
             auto usrStr = cx2str(clang_getCursorUSR(c));
 
             if (usrStr.find_last_of('#') == usrStr.size() - 2 && *(usrStr.end() - 1) == 'S') {
-                fun.isStatic = true;
+                fun.setStatic(true);
             } else {
-                parseUsrString(usrStr, &fun.isVolatile, &fun.isConst, &fun.isRestrict);
+                bool isVolatile, isConst, isRestrict;
+                parseUsrString(usrStr, &isVolatile, &isConst, &isRestrict);
+                fun.setVolatile(isVolatile);
+                fun.setConst(isConst);
+                fun.setRestrict(isRestrict);
             }
 
             clang_visitChildren(c, [](CXCursor c, CXCursor parent, CXClientData clientData) {
@@ -258,18 +257,14 @@ CXChildVisitResult classVisitor(CXCursor c, CXCursor parent, CXClientData client
 
                 switch (clang_getCursorKind(c)) {
                     case CXCursor_CXXOverrideAttr:
-                        fun.isOverride = true;
+                        fun.setOverride(true);
                         return CXChildVisit_Break;
                     default:
                         return CXChildVisit_Continue;
                 }
             }, &fun);
 
-            if (auto it = cl->functions.find(cursorSpelling); it != cl->functions.end()) {
-                it->second.emplace_front(fun);
-            } else {
-                cl->functions[cursorSpelling] = {fun};
-            }
+            clazz->addFunction(fun);
 
             return CXChildVisit_Continue;
         }
@@ -279,7 +274,7 @@ CXChildVisitResult classVisitor(CXCursor c, CXCursor parent, CXClientData client
     return CXChildVisit_Recurse;
 }
 
-void printDiagnostics(CXTranslationUnit translationUnit){
+static void printDiagnostics(CXTranslationUnit translationUnit){
     unsigned int nbDiag = clang_getNumDiagnostics(translationUnit);
 
     bool foundError = false;
@@ -300,11 +295,11 @@ void printDiagnostics(CXTranslationUnit translationUnit){
     }
 }
 
-void PTBuilder::init() {
+void Parser::init() {
     m_args.emplace_back("-x");
     m_args.emplace_back("c++");
 
-    for (auto &param : params) {
+    for (auto &param : m_params) {
         m_args.emplace_back(param.first.c_str());
         m_args.emplace_back(param.second.c_str());
     }
@@ -312,12 +307,12 @@ void PTBuilder::init() {
     m_args.emplace_back(nullptr);
 }
 
-void PTBuilder::parse(const File &file) {
-    if (!shouldBeRegenerated(file, options) && !options.regenerateDerived) {
+void Parser::parse(const File &file) {
+    if (!shouldBeRegenerated(file, m_options) && !m_options.regenerateDerived) {
         // print it anyway, since an external tool like
         // CMake most likely needs all of them
-        if (options.printPaths) {
-            std::string sourceFile = getOutputPath(options.outputDir, file, "cpp");
+        if (m_options.printPaths) {
+            std::string sourceFile = getOutputPath(m_options.outputDir, file, "cpp");
             std::cout << sourceFile << "\n";
         }
 
@@ -336,42 +331,44 @@ void PTBuilder::parse(const File &file) {
     }
 
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
-    clang_visitChildren(cursor, [](CXCursor c, CXCursor parent, CXClientData clientData) {
-        auto builder = reinterpret_cast<PTBuilder*>(clientData);
-        auto cursorKind = clang_getCursorKind(c);
-        auto cursorSpelling = cx2str(clang_getCursorSpelling(c));
-
-        if (parent.kind == CXCursor_TranslationUnit && cursorKind != CXCursor_Namespace)
-            return CXChildVisit_Continue;
-
-        switch (cursorKind) {
-            case CXCursor_Namespace:
-                return matches(builder->filter, cursorSpelling) ? CXChildVisit_Recurse : CXChildVisit_Continue;
-            case CXCursor_ClassDecl:
-            case CXCursor_StructDecl:
-                visitClass(c, builder);
-                break;
-            case CXCursor_EnumDecl: {
-                if (builder->enums.find(clang_getCursorType(c)) != builder->enums.end())
-                    break; // enum has been already parsed
-
-                Enum e = buildEnum(c, builder->conf);
-
-                CXFile file;
-                clang_getExpansionLocation(clang_getCursorLocation(c), &file, nullptr, nullptr, nullptr);
-                auto absFile = cx2str(clang_File_tryGetRealPathName(file));
-                
-                builder->enums[e.type] = {e, absFile};
-                
-                break;
-            }
-            default: break;
-        }
-        
-        return CXChildVisit_Continue;
-    }, this);
+    clang_visitChildren(cursor, visitor, this);
 
     printDiagnostics(unit);
     m_units.emplace_front(unit);
+}
+
+CXChildVisitResult Parser::visitor(CXCursor c, CXCursor parent, CXClientData clientData) {
+    auto builder = reinterpret_cast<Parser*>(clientData);
+    auto cursorKind = clang_getCursorKind(c);
+    auto cursorSpelling = cx2str(clang_getCursorSpelling(c));
+
+    if (parent.kind == CXCursor_TranslationUnit && cursorKind != CXCursor_Namespace)
+        return CXChildVisit_Continue;
+
+    switch (cursorKind) {
+        case CXCursor_Namespace:
+            return matches(builder->m_filter, cursorSpelling) ? CXChildVisit_Recurse : CXChildVisit_Continue;
+        case CXCursor_ClassDecl:
+        case CXCursor_StructDecl:
+            builder->visitClass(c);
+            break;
+        case CXCursor_EnumDecl: {
+            if (builder->m_enums.find(clang_getCursorType(c)) != builder->m_enums.end())
+                break; // enum has been already parsed
+
+            Enum e = buildEnum(c, builder->m_conf);
+
+            CXFile file;
+            clang_getExpansionLocation(clang_getCursorLocation(c), &file, nullptr, nullptr, nullptr);
+            e.setAbsFile(cx2str(clang_File_tryGetRealPathName(file)));
+
+            builder->m_enums[e.getType()] = e;
+
+            break;
+        }
+        default: break;
+    }
+
+    return CXChildVisit_Continue;
 }
 }

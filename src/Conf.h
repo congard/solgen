@@ -3,7 +3,7 @@
 
 #include <unordered_map>
 
-#include "GenOptions.h"
+#include "generator/Options.h"
 #include "types.h"
 
 namespace solgen {
@@ -12,10 +12,10 @@ public:
     Conf() = default;
 
     void load(const File &file);
-    const GenOptions* getOptions(const std::string &canonicalName) const;
+    const Options* getOptions(const std::string &canonicalName) const;
 
 private:
-    std::unordered_map<std::string, GenOptions> m_options;
+    std::unordered_map<std::string, Options> m_options;
 };
 }
 

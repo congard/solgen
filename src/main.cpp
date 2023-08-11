@@ -1,11 +1,10 @@
-#include "PTBuilder.h"
-#include "SolGen.h"
+#include "Parser.h"
+#include "generator/Generator.h"
 #include "Conf.h"
 
 #include <cstring>
 #include <iostream>
 
-using namespace std;
 using namespace solgen;
 
 constexpr auto args = R"(
@@ -94,10 +93,10 @@ int main(int argc, char *argv[]) {
 
     std::forward_list<File> inputs;
 
-    CmdOptions options;
+    CmdOptions cmdOptions;
     Conf conf;
-    PTBuilder builder(options, conf);
-    SolGen solGen(options);
+    Parser builder(cmdOptions, conf);
+    Generator generator(builder);
 
     for (int i = 1; i < argc; ++i) {
         auto isArg = [argv, i](const char *arg) { return strcmp(argv[i], arg) == 0; };
@@ -117,17 +116,16 @@ int main(int argc, char *argv[]) {
             printf("%s\n", ::options);
         } else if (isArg("--clang-args")) {
             for (int j = i + 1; j < argc; ++j) {
-                std::pair<std::string, std::string> param;
-                param.first = argv[j];
-                param.second = (j + 1 < argc && argv[j + 1][0] != '-') ? argv[++j] : "";
-                builder.params.emplace_back(param);
+                auto key = argv[j];
+                auto value = (j + 1 < argc && argv[j + 1][0] != '-') ? argv[++j] : "";
+                builder.addParam(key, value);
             }
         } else if (isArg("--output-dir")) {
             auto val = readVal();
-            options.outputDir = val;
+            cmdOptions.outputDir = val;
         } else if (isArg("--output-namespace")) {
             auto val = readVal();
-            solGen.outNamespace = val;
+            generator.setOutputNamespace(val);
         } else if (isArg("--input")) {
             ++i;
             while (i < argc && argv[i][0] != '-')
@@ -136,26 +134,22 @@ int main(int argc, char *argv[]) {
         } else if (isArg("--includes")) {
             ++i;
 
-            while (i < argc && argv[i][0] != '-') {
-                std::pair<std::string, std::string> param;
-                param.first = "-I";
-                param.second = argv[i++];
-                builder.params.emplace_back(param);
-            }
+            while (i < argc && argv[i][0] != '-')
+                builder.addParam("-I", argv[i++]);
 
-            --i; // will be increased in for loop body
+            --i; // will be incremented in the for loop body
         } else if (isArg("--namespace-filter")) {
-            builder.filter = std::regex(readVal());
+            builder.setFilter(std::regex(readVal()));
         } else if (isArg("--type-filter")) {
-            solGen.filter = std::regex(readVal());
+            generator.setFilter(std::regex(readVal()));
         } else if (isArg("--conf")) {
             conf.load(readVal());
         } else if (isArg("--regenerate")) {
-            options.regenerate = true;
+            cmdOptions.regenerate = true;
         } else if (isArg("--regenerate-derived")) {
-            options.regenerateDerived = true;
+            cmdOptions.regenerateDerived = true;
         } else if (isArg("--print-paths")) {
-            options.printPaths = true;
+            cmdOptions.printPaths = true;
         }
     }
 
@@ -169,5 +163,5 @@ int main(int argc, char *argv[]) {
     
     // solGen.filter = std::regex("zoo::.+");
     // solGen.outputDir = "/mnt/common/Development/linux/Projects/LuaTests/LuaZoo";
-    solGen.generate(builder);
+    generator.generate();
 }
