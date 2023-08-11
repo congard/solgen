@@ -2,11 +2,19 @@
 
 Solgen – C++ code generator for creating Lua bindings using [sol2](https://github.com/ThePhD/sol2) library
 
+> [!WARNING]  
+> There is no any guarantee that this project will work for you as you expect.
+> **solgen** was created as a part of [algine](https://github.com/congard/algine)
+> infrastructure, so its main goal is to automate Lua bindings generation for this
+> project. However, **solgen** is open to contributions.
+
 ## Motivation
 
-I created this code generator <u>mainly for my project [algine](https://github.com/congard/algine)</u> since I noticed, that writing class bindings by hand is too boring, takes a lot of time and hard to maintain (especially when you have advanced inheritance).
+I created this code generator <u>mainly for my project [algine](https://github.com/congard/algine)</u> since I noticed,
+that writing class bindings by hand is too boring, takes a lot of time and hard to maintain
+(especially when you have advanced inheritance).
 
-Note: it is very possible that something will not work for you, in that case just let me know.
+Note: it is very possible that something will not work for you.
 
 ## Features
 
@@ -37,15 +45,29 @@ It's important to run solgen from your project's root and pass absolute paths or
 
 Currently only Linux on the supported systems list. Windows support will be added soon.
 
-If you see the error `stddef.h: No such file or directory` (or something similar), you should add your compiler's include directories to solgen includes (`--includes`). You can get that directories with `clang++ -E -x c++ - -v < /dev/null` or `gcc -E -x c++ - -v < /dev/null`
+If you see the error `stddef.h: No such file or directory` (or something similar),
+you should add your compiler's include directories to solgen includes (`--includes`).
+You can get that directories using the following commands:
+
+- ```bash
+  clang++ -E -x c++ - -v < /dev/null
+  ```
+
+- ```bash
+  gcc -E -x c++ - -v < /dev/null
+  ```
 
 ## Limitations
 
-Most limitations are coming from the sol2 library itself. For example, you can't bind `std::set` or `std::vector` in some cases. Possible workarounds: you can provide your own custom implementations for these types (i.e. convert them to lua table and vice versa) or you can just ignore them. Possible solution - detect these types and generate custom bindings for them.
+Most limitations are coming from the sol2 library itself.
+For example, you can't bind `std::set` or `std::vector` in some cases.
+Possible workarounds: you can provide your own custom implementations for these types
+(i.e. convert them to lua table and vice versa) or you can just ignore them. Possible
+solution - detect these types and generate custom bindings for them.
 
 ## Roadmap
 
-1. [ ] **High Priority**: refactor: move functionality from `SolGen.cpp` to the corresponding 
+1. [x] **High Priority**: refactor: move functionality from `SolGen.cpp` to the corresponding 
        classes (`Class`, `Enum` etc)
 2. [ ] Add templates support
 3. [ ] Add Windows support
@@ -62,10 +84,11 @@ I will update this list when I will need more features & functionality for my ow
 
 ## How to use
 
-Solgen generates only source (`cpp`) files which contain specialized templates. To use them you can do something like that:
+Solgen generates only source (`cpp`) files which contain specialized templates.
+To use them you can do something like that:
 
 ```cpp
-// NOTE: you can specify OutputNamespace using --output-namespace
+// NOTE: you can specify OutputNamespace by using --output-namespace
 // By default it is solgen
 namespace OutputNamespace {
 template<typename T> void registerLuaUsertype(sol::table &table);
@@ -78,7 +101,8 @@ void registerMyTypes(sol::table &table) {
 }
 ```
 
-You can get list of generated files by setting `--print-paths` flag. This option is very useful for build systems like CMake.
+You can get list of generated files by setting `--print-paths` flag.
+This option is very useful for build systems like CMake.
 
 ## Conf file syntax
 
