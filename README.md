@@ -27,6 +27,10 @@ Solgen has only one dependency - `libclang`.
 
 Fedora: `sudo dnf install clang-devel`
 
+## Requirements
+
+C++20 compatible compiler.
+
 ## Notes
 
 It's important to run solgen from your project's root and pass absolute paths or relative from the project root.
