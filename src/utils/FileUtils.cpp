@@ -34,7 +34,12 @@ std::string getOutputPath(std::string_view outputDir, std::string_view absPath, 
 }
 
 bool shouldBeRegenerated(std::string_view file, const CmdOptions &options) {
-    auto outSourceTime = fs::last_write_time(getOutputPath(options.outputDir, file, "cpp"));
+    fs::path outputPath = getOutputPath(options.outputDir, file, "cpp");
+
+    auto outSourceTime = fs::exists(outputPath) ?
+            fs::last_write_time(outputPath) :
+            fs::file_time_type {};
+
     return options.regenerate || fs::last_write_time(file) != outSourceTime;
 }
 }
