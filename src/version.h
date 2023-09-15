@@ -3,7 +3,7 @@
 
 namespace solgen::version {
 auto name = "SolGen";
-auto version = "0.2";
+auto version = "0.3";
 auto url = "https://github.com/congard/solgen";
 }
 
