@@ -308,11 +308,11 @@ void Parser::init() {
 }
 
 void Parser::parse(const File &file) {
-    if (!shouldBeRegenerated(file, m_options) && !m_options.regenerateDerived) {
+    if (!FileUtils::shouldBeRegenerated(file, m_options) && !m_options.regenerateDerived) {
         // print it anyway, since an external tool like
         // CMake most likely needs all of them
         if (m_options.printPaths) {
-            std::string sourceFile = getOutputPath(m_options.outputDir, file, "cpp");
+            std::string sourceFile = FileUtils::getOutputPath(m_options.outputDir, file);
             std::cout << sourceFile << "\n";
         }
 

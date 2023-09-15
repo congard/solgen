@@ -4,7 +4,7 @@
 
 namespace fs = std::filesystem;
 
-namespace solgen {
+namespace solgen::FileUtils {
 inline static std::string getRelativePath(std::string_view path) {
     if (path.empty())
         return {};

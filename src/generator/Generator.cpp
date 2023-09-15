@@ -47,7 +47,7 @@ void Generator::buildRegenerationMap(const Class &clazz) {
     if (auto it = m_regenerationMap.find(classAbsPath); it != m_regenerationMap.end() && it->second)
         return;
 
-    bool &regenerate = m_regenerationMap[classAbsPath] = shouldBeRegenerated(classAbsPath, getCmdOptions());
+    bool &regenerate = m_regenerationMap[classAbsPath] = FileUtils::shouldBeRegenerated(classAbsPath, getCmdOptions());
 
     for (auto [base, access] : clazz.getBases()) {
         // we don't care about non-public base classes
@@ -67,7 +67,7 @@ void Generator::buildRegenerationMap(const Class &clazz) {
 bool Generator::isRegenerate(const File &file) {
     if (auto it = m_regenerationMap.find(file); it != m_regenerationMap.end())
         return it->second;
-    return shouldBeRegenerated(file, getCmdOptions());
+    return FileUtils::shouldBeRegenerated(file, getCmdOptions());
 }
 
 Generator::Generator(const Parser &parser)
@@ -86,7 +86,7 @@ void Generator::generate() {
 
     auto printOutputFile = [&options](const File &file) {
         if (options.printPaths) {
-            std::string sourceFile = getOutputPath(options.outputDir, file, "cpp");
+            std::string sourceFile = FileUtils::getOutputPath(options.outputDir, file);
             std::cout << sourceFile << "\n";
         }
     };
@@ -153,7 +153,7 @@ void Generator::generate() {
         };
 
         std::string date = dateStr();
-        fs::path sourceFile = getOutputPath(getCmdOptions().outputDir, file, "cpp");
+        fs::path sourceFile = FileUtils::getOutputPath(getCmdOptions().outputDir, file);
 
         std::string sourceIncludes;
         sourceIncludes += "#include <sol/sol.hpp>\n";

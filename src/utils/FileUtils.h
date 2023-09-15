@@ -6,7 +6,7 @@
 
 #include "../CmdOptions.h"
 
-namespace solgen {
+namespace solgen::FileUtils {
 /**
  * Performs the following transformation:
  * <ul>
