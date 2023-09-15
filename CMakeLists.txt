@@ -35,4 +35,8 @@ add_executable(solgen
         src/generator/Function.cpp
         src/generator/Field.cpp)
 
-target_link_libraries(solgen clang)
+include(cmake/libclang.cmake)
+
+target_include_directories(solgen PRIVATE "${LibClang_INCLUDES}")
+
+target_link_libraries(solgen "${LibClang_LIBRARIES}")
