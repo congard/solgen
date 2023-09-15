@@ -8,6 +8,10 @@
 #include <ctime>
 #include <sstream>
 #include <iostream>
+#include <fstream>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 namespace solgen {
 constexpr auto header = R"(
@@ -149,13 +153,9 @@ void Generator::generate() {
         };
 
         std::string date = dateStr();
-        std::string sourceFile = getOutputPath(getCmdOptions().outputDir, file, "cpp");
-
-        // printf("%s\n%s\n%s\n", headerFile.c_str(), sourceFile.c_str(), file.c_str());
-        // exit(-1);
+        fs::path sourceFile = getOutputPath(getCmdOptions().outputDir, file, "cpp");
 
         std::string sourceIncludes;
-
         sourceIncludes += "#include <sol/sol.hpp>\n";
 
         for (const File &include : src.sourceIncludes)
@@ -172,11 +172,16 @@ void Generator::generate() {
             {"IMPL",         src.source}
         });
 
-        mkdirs(getParentDir(sourceFile));
-        writeStr(sourceFile, src.source);
+        if (auto parentPath = sourceFile.parent_path(); !parentPath.empty())
+            fs::create_directories(parentPath);
 
-        time_t origModTime = getModificationTime(file);
-        setModificationTime(sourceFile, origModTime);
+        std::ofstream ofs(sourceFile);
+        ofs << src.source;
+        ofs.flush();
+        ofs.close();
+
+        auto origModTime = std::filesystem::last_write_time(file);
+        std::filesystem::last_write_time(sourceFile, origModTime);
     }
 }
 

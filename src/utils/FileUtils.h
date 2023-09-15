@@ -3,23 +3,34 @@
 
 #include <string>
 #include <string_view>
-#include <bits/types/time_t.h>
 
 #include "../CmdOptions.h"
-#include "../types.h"
 
 namespace solgen {
-bool exists(std::string_view path);
-time_t getModificationTime(std::string_view path);
-void setModificationTime(std::string_view path, time_t time);
-void writeStr(std::string_view path, std::string_view data);
-void mkdirs(const std::string &path);
-std::string getRelativePath(std::string_view path);
-std::string getParentDir(std::string_view file);
-std::string getFileName(std::string_view file);
-std::string join(std::string_view p1, std::string_view p2);
-std::string getOutputPath(std::string_view outputDir, std::string_view absPath, std::string_view ext);
-bool shouldBeRegenerated(const File &file, const CmdOptions &options);
+/**
+ * Performs the following transformation:
+ * <ul>
+ *   <li>file.h -> [outputDir]/file.solgen.[ext]</li>
+ *   <li>file -> [outputDir]/file.solgen.[ext]</li>
+ *   <li>folder/file.h -> [outputDir]/folder/file.solgen.[ext]</li>
+ *   <li>folder/file -> [outputDir]/folder/file.solgen.[ext]</li>
+ * </ul>
+ * @param outputDir The output directory.
+ * @param absPath The file's absolute path.
+ * @param ext The output file's extension.
+ * @return The transformed string representing the output path
+ * in the following format: `[outputDir]/[filename].solgen.[ext]`.
+ */
+std::string getOutputPath(std::string_view outputDir, std::string_view absPath, std::string_view ext = "cpp");
+
+/**
+ * Checks whether the specified file should be regenerated or not.
+ * @param file The file to be checked.
+ * @param options The command line options.
+ * @return `true` if the specified file should be regenerated,
+ * `false` otherwise.
+ */
+bool shouldBeRegenerated(std::string_view file, const CmdOptions &options);
 }
 
 #endif // SOL2_GENERATOR_FILEUTILS_H
