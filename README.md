@@ -1,6 +1,6 @@
 # Solgen
 
-Solgen – C++ code generator for creating Lua bindings using [sol2](https://github.com/ThePhD/sol2) library
+Solgen – C++ code generator for creating Lua bindings using [sol2](https://github.com/ThePhD/sol2) library.
 
 > [!WARNING]  
 > There is no any guarantee that this project will work for you as you expect.
@@ -33,17 +33,48 @@ Note: it is very possible that something will not work for you.
 
 Solgen has only one dependency - `libclang`.
 
+### Linux
+
 Fedora: `sudo dnf install clang-devel`
+
+### Windows
+
+In order to build `solgen` on Windows, you should install [LLVM](https://releases.llvm.org/download.html).
+
+> [!NOTE]
+> If you have installed LLVM in the default location (i.e., `$Env:ProgramW6432\LLVM`),
+> there is no need to specify the LLVM location.
 
 ## Requirements
 
 C++20 compatible compiler.
 
+### Windows
+
+After the building process, a symlink to the `libclang.dll` will be created in order
+to ensure that `solgen` can be executed even when LLVM is not included in the PATH.
+
+By default, in Windows, symlinks can be created only with elevated privileges. To change
+this, you need to enable Developer mode in the settings.
+
+**For Windows 11:** _Settings -> Privacy & security -> For developers -> Developer Mode (on)_.
+
+## Flags
+
+| Flag        | Description             | Platform | Mandatory | Default                  |
+|-------------|-------------------------|----------|-----------|--------------------------|
+| `LLVM_PATH` | Specifies LLVM location | Windows  | No        | `$Env:ProgramW6432\LLVM` |
+
+## Support
+
+Tested on:
+
+- Fedora 38
+- Windows 11, clang version 16.0.0, target: x86_64-pc-windows-msvc
+
 ## Notes
 
 It's important to run solgen from your project's root and pass absolute paths or relative from the project root.
-
-Currently only Linux on the supported systems list. Windows support will be added soon.
 
 If you see the error `stddef.h: No such file or directory` (or something similar),
 you should add your compiler's include directories to solgen includes (`--includes`).
@@ -70,7 +101,7 @@ solution - detect these types and generate custom bindings for them.
 1. [x] **High Priority**: refactor: move functionality from `SolGen.cpp` to the corresponding 
        classes (`Class`, `Enum` etc)
 2. [ ] Add templates support
-3. [ ] Add Windows support
+3. [x] Add Windows support
 4. [ ] Add ability to disable properties (flag `--disable-properties` and option `prop_disable`)
 5. [ ] Register types that were used in class (args, fields, return types etc)
 6. [ ] Link getters of type `const std::string&` and setters of type `std::string_view`
