@@ -31,6 +31,21 @@ std::string getOutputPath(std::string_view outputDir, std::string_view absPath, 
  * `false` otherwise.
  */
 bool shouldBeRegenerated(std::string_view file, const CmdOptions &options);
+
+/**
+ * Prints the specified path. Note that unix-like separator `/`
+ * will be used.
+ * @param path The path to print.
+ */
+void printPath(std::string_view path);
+
+/**
+ * The same as FileUtils::printPath(FileUtils::getOutputPath(...))
+ * @param outputDir The output directory.
+ * @param absPath The file's absolute path.
+ * @param ext The output file's extension.
+ */
+void printOutputPath(std::string_view outputDir, std::string_view absPath, std::string_view ext = "cpp");
 }
 
 #endif // SOL2_GENERATOR_FILEUTILS_H

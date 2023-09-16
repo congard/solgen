@@ -86,8 +86,7 @@ void Generator::generate() {
 
     auto printOutputFile = [&options](const File &file) {
         if (options.printPaths) {
-            std::string sourceFile = FileUtils::getOutputPath(options.outputDir, file);
-            std::cout << sourceFile << "\n";
+            FileUtils::printOutputPath(options.outputDir, file);
         }
     };
 

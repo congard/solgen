@@ -1,6 +1,7 @@
 #include "FileUtils.h"
 
 #include <filesystem>
+#include <iostream>
 
 namespace fs = std::filesystem;
 
@@ -41,5 +42,22 @@ bool shouldBeRegenerated(std::string_view file, const CmdOptions &options) {
             fs::file_time_type {};
 
     return options.regenerate || fs::last_write_time(file) != outSourceTime;
+}
+
+void printPath(std::string_view path) {
+    std::string p {path};
+
+    size_t pos = p.find('\\');
+
+    while (pos != std::string::npos) {
+        p.replace(pos, 1, "/");
+        pos = p.find('\\', pos + 1);
+    }
+
+    std::cout << p << "\n";
+}
+
+void printOutputPath(std::string_view outputDir, std::string_view absPath, std::string_view ext) {
+    printPath(getOutputPath(outputDir, absPath, ext));
 }
 }
